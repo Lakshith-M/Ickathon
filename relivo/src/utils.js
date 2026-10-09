@@ -27,6 +27,7 @@ export const demoData = [
     lat: 40.7829,
     lon: -73.9654,
     distance: "150m",
+    distanceMeters: 150,
     walkingTime: "2 min",
     factors: {
       availability: 90,
@@ -35,7 +36,7 @@ export const demoData = [
       facilities: 80,
       affordability: 100
     },
-    facilities: ["Water", "Wheelchair access", "Free"],
+    facilities: ["Water", "Wheelchair access", "Free", "Unisex", "Male", "Female"],
     reports: [
       { type: "clean", timestamp: Date.now() - 1000 * 60 * 15 } // 15 mins ago
     ]
@@ -46,6 +47,7 @@ export const demoData = [
     lat: 40.7810,
     lon: -73.9660,
     distance: "300m",
+    distanceMeters: 300,
     walkingTime: "4 min",
     factors: {
       availability: 100,
@@ -54,7 +56,7 @@ export const demoData = [
       facilities: 50,
       affordability: 50
     },
-    facilities: ["Paid"],
+    facilities: ["Paid", "Male"],
     reports: [
       { type: "dirty", timestamp: Date.now() - 1000 * 60 * 120 } // 2 hours ago
     ]
@@ -85,6 +87,9 @@ export async function fetchLiveRestrooms(lat, lon, radius = 1000) {
       else if (tags.fee === 'no') facilities.push('Free');
       if (tags.wheelchair === 'yes') facilities.push('Wheelchair access');
       if (tags['drinking_water'] === 'yes') facilities.push('Water');
+      if (tags.unisex === 'yes') facilities.push('Unisex');
+      if (tags.male === 'yes' || (!tags.male && !tags.female && !tags.unisex)) facilities.push('Male'); // default to both if unspecified in many places
+      if (tags.female === 'yes' || (!tags.male && !tags.female && !tags.unisex)) facilities.push('Female');
 
       // Estimate distance naively for demo purposes (1 deg ~ 111km)
       const distKm = Math.sqrt(Math.pow(el.lat - lat, 2) + Math.pow(el.lon - lon, 2)) * 111;
@@ -97,6 +102,7 @@ export async function fetchLiveRestrooms(lat, lon, radius = 1000) {
         lat: el.lat,
         lon: el.lon,
         distance: distM + 'm',
+        distanceMeters: distM,
         walkingTime,
         factors: {
           availability: 80, // Default assumptions for live data

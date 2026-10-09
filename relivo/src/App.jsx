@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { calculateScore, demoData, fetchLiveRestrooms } from './utils';
-import { AlertTriangle, Filter, CheckCircle2, Navigation, AlertCircle, MapPin, Loader2, Star } from 'lucide-react';
+import { AlertTriangle, Filter, CheckCircle2, Navigation, AlertCircle, MapPin, Loader2, Star, Users } from 'lucide-react';
 
 function ChangeView({ center, zoom }) {
   const map = useMap();
@@ -15,7 +15,7 @@ export default function App() {
   const [selectedRestroom, setSelectedRestroom] = useState(null);
   const [emergencyMode, setEmergencyMode] = useState(false);
   const [userLoc, setUserLoc] = useState([40.7820, -73.9650]); // Central park area fallback
-  const [filters, setFilters] = useState({ freeOnly: false, accessible: false });
+  const [filters, setFilters] = useState({ freeOnly: false, accessible: false, gender: 'all', maxDistance: '' });
   const [loading, setLoading] = useState(false);
   const [geoError, setGeoError] = useState(null);
   
@@ -113,6 +113,11 @@ export default function App() {
   const filteredRestrooms = restrooms.filter(r => {
     if (filters.freeOnly && r.factors.affordability !== 100) return false;
     if (filters.accessible && r.factors.accessibility !== 100) return false;
+    if (filters.gender === 'male' && !r.facilities.includes('Male') && !r.facilities.includes('Unisex')) return false;
+    if (filters.gender === 'female' && !r.facilities.includes('Female') && !r.facilities.includes('Unisex')) return false;
+    if (filters.maxDistance && !isNaN(parseInt(filters.maxDistance))) {
+      if (r.distanceMeters > parseInt(filters.maxDistance)) return false;
+    }
     return true;
   });
 
@@ -158,15 +163,59 @@ export default function App() {
             <div className="flex items-center gap-2 mb-3 font-semibold dark:text-gray-200">
               <Filter size={18} /> Filters
             </div>
-            <div className="flex flex-col gap-2 text-sm dark:text-gray-300">
-              <label className="flex items-center gap-2">
-                <input type="checkbox" checked={filters.freeOnly} onChange={e => setFilters({...filters, freeOnly: e.target.checked})} className="rounded text-brand-plum" />
-                Free only
-              </label>
-              <label className="flex items-center gap-2">
-                <input type="checkbox" checked={filters.accessible} onChange={e => setFilters({...filters, accessible: e.target.checked})} className="rounded text-brand-plum" />
-                Wheelchair accessible
-              </label>
+            <div className="flex flex-col gap-3 text-sm dark:text-gray-300">
+              <div className="flex items-center justify-between">
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" checked={filters.freeOnly} onChange={e => setFilters({...filters, freeOnly: e.target.checked})} className="rounded text-brand-plum" />
+                  Free only
+                </label>
+                <span className="text-xs bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded-full">{restrooms.filter(r => r.factors.affordability === 100).length}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" checked={filters.accessible} onChange={e => setFilters({...filters, accessible: e.target.checked})} className="rounded text-brand-plum" />
+                  Wheelchair accessible
+                </label>
+                <span className="text-xs bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded-full">{restrooms.filter(r => r.factors.accessibility === 100).length}</span>
+              </div>
+
+              <div className="flex flex-col gap-2 border-t border-gray-200 dark:border-gray-700 pt-3 mt-1">
+                <div className="flex items-center gap-2">
+                  <Users size={16} className="text-brand-plum" />
+                  <span className="font-semibold">Gender</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-1 cursor-pointer">
+                    <input type="radio" name="gender" checked={filters.gender === 'all'} onChange={() => setFilters({...filters, gender: 'all'})} /> All
+                  </label>
+                  <label className="flex items-center gap-1 cursor-pointer">
+                    <input type="radio" name="gender" checked={filters.gender === 'male'} onChange={() => setFilters({...filters, gender: 'male'})} /> 🚹 Male
+                    <span className="text-xs bg-gray-200 dark:bg-gray-700 px-1.5 py-0.5 rounded-full ml-1">{restrooms.filter(r => r.facilities.includes('Male') || r.facilities.includes('Unisex')).length}</span>
+                  </label>
+                  <label className="flex items-center gap-1 cursor-pointer">
+                    <input type="radio" name="gender" checked={filters.gender === 'female'} onChange={() => setFilters({...filters, gender: 'female'})} /> 🚺 Female
+                    <span className="text-xs bg-gray-200 dark:bg-gray-700 px-1.5 py-0.5 rounded-full ml-1">{restrooms.filter(r => r.facilities.includes('Female') || r.facilities.includes('Unisex')).length}</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between border-t border-gray-200 dark:border-gray-700 pt-3 mt-1">
+                <label className="flex items-center gap-2 font-semibold">
+                  Max Distance (m):
+                  <input 
+                    type="number" 
+                    value={filters.maxDistance} 
+                    onChange={e => setFilters({...filters, maxDistance: e.target.value})} 
+                    className="w-20 p-1 font-normal rounded border dark:bg-gray-900 dark:border-gray-700 outline-none focus:ring-1 focus:ring-brand-plum" 
+                    placeholder="e.g. 500"
+                  />
+                </label>
+                {filters.maxDistance && !isNaN(parseInt(filters.maxDistance)) && (
+                   <span className="text-xs bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded-full">
+                     {restrooms.filter(r => r.distanceMeters <= parseInt(filters.maxDistance)).length}
+                   </span>
+                )}
+              </div>
             </div>
           </div>
 
