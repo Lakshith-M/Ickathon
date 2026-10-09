@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
-import { calculateScore, fetchLiveRestrooms } from './utils';
+import { calculateScore, fetchLiveRestrooms, demoData } from './utils';
 import { Moon, Sun, AlertTriangle, Filter, CheckCircle2, Navigation, AlertCircle, MapPin, Loader2, X, Info } from 'lucide-react';
 
 function ChangeView({ center, zoom }) {
@@ -20,64 +20,59 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [geoError, setGeoError] = useState(null);
 
-  const requestLocation = () => {
+  const requestLocation = async () => {
     setLoading(true);
     setGeoError(null);
-    if (!navigator.geolocation) {
-      setGeoError("Geolocation is not supported by your browser");
+
+    const loadDataForLocation = async (lat, lon, sourceMsg) => {
+      setUserLoc([lat, lon]);
+      try {
+        const liveData = await fetchLiveRestrooms(lat, lon);
+        if (liveData.length > 0) {
+          setRestrooms(liveData);
+          if (sourceMsg) setGeoError(sourceMsg);
+        } else {
+          // If OSM has no data for this location, inject our SSN mock data so the app works for the demo!
+          setRestrooms(demoData);
+          setGeoError(`${sourceMsg ? sourceMsg + ' ' : ''}No live data on OSM here. Loaded campus demo data.`);
+        }
+      } catch (err) {
+        setRestrooms(demoData);
+        setGeoError(`${sourceMsg ? sourceMsg + ' ' : ''}Live fetch failed. Loaded campus demo data.`);
+      }
       setLoading(false);
+    };
+
+    if (!navigator.geolocation) {
+      await loadDataForLocation(12.7508, 80.1973, "Geolocation unsupported.");
       return;
     }
 
     navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const { latitude, longitude } = position.coords;
-        setUserLoc([latitude, longitude]);
-        
-        try {
-          const liveData = await fetchLiveRestrooms(latitude, longitude);
-          if (liveData.length > 0) {
-            setRestrooms(liveData);
-          } else {
-            setGeoError("No restrooms found nearby.");
-          }
-        } catch (err) {
-          setGeoError("Failed to load live data.");
-        }
-        setLoading(false);
+      (position) => {
+        loadDataForLocation(position.coords.latitude, position.coords.longitude, null);
       },
       async (error) => {
-        let msg = "Location permission denied.";
-        if (error.code === 2) msg = "Location unavailable (no GPS).";
-        if (error.code === 3) msg = "Location request timed out.";
+        let msg = "GPS denied.";
+        if (error.code === 2) msg = "GPS unavailable.";
+        if (error.code === 3) msg = "GPS timeout.";
         
         try {
-          // Fallback to IP-based location
-          const ipRes = await fetch('https://ipapi.co/json/');
+          // Fallback to IP location
+          const ipRes = await fetch('https://ipinfo.io/json');
           const ipData = await ipRes.json();
-          if (ipData.latitude && ipData.longitude) {
-            setUserLoc([ipData.latitude, ipData.longitude]);
-            setGeoError(`${msg} Used IP location instead.`);
-            
-            const liveData = await fetchLiveRestrooms(ipData.latitude, ipData.longitude);
-            if (liveData.length > 0) {
-              setRestrooms(liveData);
-            } else {
-              setGeoError(`${msg} Used IP location. No restrooms found nearby.`);
-            }
+          if (ipData.loc) {
+            const [lat, lon] = ipData.loc.split(',').map(Number);
+            await loadDataForLocation(lat, lon, `${msg} Used IP Location.`);
           } else {
-             throw new Error('IP Location failed');
+            throw new Error('IP Location failed');
           }
         } catch (err) {
-          setGeoError(`${msg} Also failed IP location fallback.`);
+          // Ultimate fallback to SSN College
+          await loadDataForLocation(12.7508, 80.1973, `${msg} IP fallback failed. Used default campus location.`);
         }
-        setLoading(false);
       },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0
-      }
+      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
     );
   };
 
