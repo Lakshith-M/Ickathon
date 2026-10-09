@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { calculateScore, demoData, fetchLiveRestrooms } from './utils';
-import { Moon, Sun, AlertTriangle, Filter, CheckCircle2, Navigation, AlertCircle, MapPin, Loader2, Star } from 'lucide-react';
+import { AlertTriangle, Filter, CheckCircle2, Navigation, AlertCircle, MapPin, Loader2, Star } from 'lucide-react';
 
 function ChangeView({ center, zoom }) {
   const map = useMap();
@@ -10,7 +10,6 @@ function ChangeView({ center, zoom }) {
 }
 
 export default function App() {
-  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
   const [demoMode, setDemoMode] = useState(true);
   const [restrooms, setRestrooms] = useState(demoData);
   const [selectedRestroom, setSelectedRestroom] = useState(null);
@@ -23,6 +22,7 @@ export default function App() {
   // Feedback state
   const [feedbackRating, setFeedbackRating] = useState(0);
   const [feedbackComment, setFeedbackComment] = useState("");
+  const [hasNavigated, setHasNavigated] = useState(false);
 
 
   const requestLocation = () => {
@@ -60,14 +60,12 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
+    if (selectedRestroom) {
+      setHasNavigated(false);
+      setFeedbackRating(0);
+      setFeedbackComment("");
     }
-  }, [darkMode]);
+  }, [selectedRestroom?.id]);
 
   const handleEmergency = () => {
     setEmergencyMode(true);
@@ -128,9 +126,6 @@ export default function App() {
             <h1 className="text-3xl font-bold tracking-tight">RELIVO</h1>
             <p className="text-sm opacity-90 mt-1">Relief, right when you need it.</p>
           </div>
-          <button onClick={() => setDarkMode(!darkMode)} className="p-2 rounded-full hover:bg-white/20">
-            {darkMode ? <Sun size={24} /> : <Moon size={24} />}
-          </button>
         </div>
 
         <div className="p-6 flex-1 overflow-y-auto">
@@ -301,46 +296,49 @@ export default function App() {
             </div>
           )}
 
-          <div className="mb-6 border-t dark:border-gray-700 pt-4">
-            <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Leave Feedback</h4>
-            <form onSubmit={handleFeedbackSubmit} className="flex flex-col gap-3">
-              <div className="flex gap-1 justify-center mb-2">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <button
-                    key={star}
-                    type="button"
-                    onClick={() => setFeedbackRating(star)}
-                    className="focus:outline-none transition-transform hover:scale-110"
-                  >
-                    <Star
-                      size={28}
-                      fill={star <= feedbackRating ? "#f59e0b" : "none"}
-                      color={star <= feedbackRating ? "#f59e0b" : "#9ca3af"}
-                    />
-                  </button>
-                ))}
-              </div>
-              <textarea
-                value={feedbackComment}
-                onChange={(e) => setFeedbackComment(e.target.value)}
-                placeholder="Share your experience (optional)"
-                className="w-full p-2 text-sm border rounded-lg bg-gray-50 dark:bg-gray-900 dark:border-gray-700 dark:text-white focus:ring-2 focus:ring-brand-plum outline-none resize-none"
-                rows="2"
-              />
-              <button 
-                type="submit" 
-                disabled={feedbackRating === 0}
-                className="w-full py-2 bg-brand-plum text-white rounded-lg hover:bg-brand-plumDark transition disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
-              >
-                Submit & Update Score
-              </button>
-            </form>
-          </div>
+          {hasNavigated && (
+            <div className="mb-6 border-t dark:border-gray-700 pt-4">
+              <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Leave Feedback</h4>
+              <form onSubmit={handleFeedbackSubmit} className="flex flex-col gap-3">
+                <div className="flex gap-1 justify-center mb-2">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setFeedbackRating(star)}
+                      className="focus:outline-none transition-transform hover:scale-110"
+                    >
+                      <Star
+                        size={28}
+                        fill={star <= feedbackRating ? "#f59e0b" : "none"}
+                        color={star <= feedbackRating ? "#f59e0b" : "#9ca3af"}
+                      />
+                    </button>
+                  ))}
+                </div>
+                <textarea
+                  value={feedbackComment}
+                  onChange={(e) => setFeedbackComment(e.target.value)}
+                  placeholder="Share your experience (optional)"
+                  className="w-full p-2 text-sm border rounded-lg bg-gray-50 dark:bg-gray-900 dark:border-gray-700 dark:text-white focus:ring-2 focus:ring-brand-plum outline-none resize-none"
+                  rows="2"
+                />
+                <button 
+                  type="submit" 
+                  disabled={feedbackRating === 0}
+                  className="w-full py-2 bg-brand-plum text-white rounded-lg hover:bg-brand-plumDark transition disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+                >
+                  Submit & Update Score
+                </button>
+              </form>
+            </div>
+          )}
 
           <a 
             href={`https://www.google.com/maps/dir/?api=1&destination=${selectedRestroom.lat},${selectedRestroom.lon}`}
             target="_blank"
             rel="noreferrer"
+            onClick={() => setHasNavigated(true)}
             className="w-full bg-gray-900 dark:bg-white dark:text-gray-900 text-white font-bold py-3 px-4 rounded-xl flex justify-center items-center gap-2 hover:bg-gray-800 transition"
           >
             <Navigation size={18} />
