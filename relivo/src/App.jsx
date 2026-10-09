@@ -51,20 +51,32 @@ export default function App() {
         if (error.code === 2) msg = "Location unavailable (no GPS).";
         if (error.code === 3) msg = "Location request timed out.";
         
-        setGeoError(`${msg} Falling back to campus center...`);
-        
-        // Fallback to fetch live data around SSN
         try {
-          const liveData = await fetchLiveRestrooms(userLoc[0], userLoc[1]);
-          if (liveData.length > 0) {
-            setRestrooms(liveData);
+          // Fallback to IP-based location
+          const ipRes = await fetch('https://ipapi.co/json/');
+          const ipData = await ipRes.json();
+          if (ipData.latitude && ipData.longitude) {
+            setUserLoc([ipData.latitude, ipData.longitude]);
+            setGeoError(`${msg} Used IP location instead.`);
+            
+            const liveData = await fetchLiveRestrooms(ipData.latitude, ipData.longitude);
+            if (liveData.length > 0) {
+              setRestrooms(liveData);
+            } else {
+              setGeoError(`${msg} Used IP location. No restrooms found nearby.`);
+            }
           } else {
-            setGeoError(`${msg} No restrooms found at campus either.`);
+             throw new Error('IP Location failed');
           }
         } catch (err) {
-          setGeoError(`${msg} Failed to load fallback data.`);
+          setGeoError(`${msg} Also failed IP location fallback.`);
         }
         setLoading(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
       }
     );
   };
