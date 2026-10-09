@@ -20,47 +20,6 @@ export function calculateScore(factors) {
     };
 }
 
-export const demoData = [
-  {
-    id: 1,
-    name: "Central Park Public Restroom",
-    lat: 40.7829,
-    lon: -73.9654,
-    distance: "150m",
-    walkingTime: "2 min",
-    factors: {
-      availability: 90,
-      cleanliness: 60,
-      accessibility: 100,
-      facilities: 80,
-      affordability: 100
-    },
-    facilities: ["Water", "Wheelchair access", "Free"],
-    reports: [
-      { type: "clean", timestamp: Date.now() - 1000 * 60 * 15 } // 15 mins ago
-    ]
-  },
-  {
-    id: 2,
-    name: "Metro Station Toilet",
-    lat: 40.7810,
-    lon: -73.9660,
-    distance: "300m",
-    walkingTime: "4 min",
-    factors: {
-      availability: 100,
-      cleanliness: 40,
-      accessibility: null,
-      facilities: 50,
-      affordability: 50
-    },
-    facilities: ["Paid"],
-    reports: [
-      { type: "dirty", timestamp: Date.now() - 1000 * 60 * 120 } // 2 hours ago
-    ]
-  }
-];
-
 export async function fetchLiveRestrooms(lat, lon, radius = 1000) {
   const query = `
     [out:json][timeout:25];
@@ -86,7 +45,6 @@ export async function fetchLiveRestrooms(lat, lon, radius = 1000) {
       if (tags.wheelchair === 'yes') facilities.push('Wheelchair access');
       if (tags['drinking_water'] === 'yes') facilities.push('Water');
 
-      // Estimate distance naively for demo purposes (1 deg ~ 111km)
       const distKm = Math.sqrt(Math.pow(el.lat - lat, 2) + Math.pow(el.lon - lon, 2)) * 111;
       const distM = Math.round(distKm * 1000);
       const walkingTime = Math.max(1, Math.round(distM / 80)) + ' min';
@@ -99,14 +57,14 @@ export async function fetchLiveRestrooms(lat, lon, radius = 1000) {
         distance: distM + 'm',
         walkingTime,
         factors: {
-          availability: 80, // Default assumptions for live data
+          availability: 80,
           cleanliness: 50,
           accessibility: tags.wheelchair === 'yes' ? 100 : (tags.wheelchair === 'no' ? 0 : null),
           facilities: facilities.length > 0 ? 80 : 50,
           affordability: tags.fee === 'yes' ? 0 : 100
         },
         facilities,
-        reports: [] // Will be hydrated from local storage in App if implemented
+        reports: []
       };
     });
   } catch (err) {
