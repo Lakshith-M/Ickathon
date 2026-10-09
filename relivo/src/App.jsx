@@ -4,7 +4,7 @@ import { calculateScore, fetchLiveRestrooms } from './utils';
 import { AlertTriangle, Filter, CheckCircle, Navigation, AlertCircle, MapPin, Loader2, Star, X, Info, Plus } from 'lucide-react';
 import AdminDashboard from './AdminDashboard';
 import { auth, googleProvider } from './firebase';
-import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
+import { signInWithRedirect, signOut, onAuthStateChanged } from 'firebase/auth';
 
 function ChangeView({ center, zoom }) {
   const map = useMap();
@@ -189,7 +189,7 @@ export default function App() {
   const handleGoogleLogin = async () => {
     try {
       setAuthError('');
-      await signInWithPopup(auth, googleProvider);
+      await signInWithRedirect(auth, googleProvider);
     } catch (error) {
       console.error(error);
       setAuthError('Failed to sign in with Google: ' + error.message);
