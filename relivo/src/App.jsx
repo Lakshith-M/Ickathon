@@ -12,7 +12,7 @@ function ChangeView({ center, zoom }) {
   return null;
 }
 
-const ADMIN_EMAILS = ['lakshith@example.com', 'admin@relivo.com']; // Hardcode admin emails here
+const ADMIN_EMAILS = ['lakshithalizar@gmail.com', 'admin@relivo.com']; // Hardcode admin emails here
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
