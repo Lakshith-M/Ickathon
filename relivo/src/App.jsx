@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { calculateScore, fetchLiveRestrooms } from './utils';
-import { Moon, Sun, AlertTriangle, Filter, CheckCircle, Navigation, AlertCircle, MapPin, Loader2, Star, X, Info } from 'lucide-react';
+import { AlertTriangle, Filter, CheckCircle, Navigation, AlertCircle, MapPin, Loader2, Star, X, Info } from 'lucide-react';
 
 function ChangeView({ center, zoom }) {
   const map = useMap();
@@ -10,7 +10,6 @@ function ChangeView({ center, zoom }) {
 }
 
 export default function App() {
-  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
   const [restrooms, setRestrooms] = useState([]);
   const [selectedRestroom, setSelectedRestroom] = useState(null);
   const [emergencyMode, setEmergencyMode] = useState(false);
@@ -57,16 +56,6 @@ export default function App() {
       }
     );
   };
-
-  useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-    }
-  }, [darkMode]);
 
   const handleEmergency = () => {
     setEmergencyMode(true);
@@ -172,9 +161,6 @@ export default function App() {
             <h1 className="text-3xl font-bold tracking-tight">RELIVO</h1>
             <p className="text-sm opacity-90 mt-1">Relief, right when you need it.</p>
           </div>
-          <button onClick={() => setDarkMode(!darkMode)} className="p-2 rounded-full hover:bg-white/20">
-            {darkMode ? <Sun size={24} /> : <Moon size={24} />}
-          </button>
         </div>
 
         <div className="p-6 flex-1 overflow-y-auto">
