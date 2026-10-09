@@ -4,11 +4,10 @@ You are collaborating on this project with other agents and humans. To ensure sm
 
 ## 1. Branch Ownership
 There are three team members: **Lakshith**, **Ganesh**, and **Jivan**.
-- You must **ONLY** write, commit, and push to the branch that belongs to your respective user.
-- **Lakshith**'s agent must ONLY work on the `Lakshith` branch.
 - **Ganesh**'s agent must ONLY work on the `Ganesh` branch.
 - **Jivan**'s agent must ONLY work on the `Jivan` branch.
-- **NEVER** commit directly to `main` or another user's branch.
+- **Lakshith** is the project lead. **Lakshith and Lakshith's agent have full permission** to write, commit, and push to **all branches**, including `Ganesh`, `Jivan`, and `main`.
+- Agents for Ganesh and Jivan must **NEVER** commit directly to `main` or another user's branch.
 
 ## 2. Regular Pulling (Syncing)
 - **Always** perform a `git pull origin <your_branch>` before beginning a new task to ensure you have the latest code.
