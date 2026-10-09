@@ -71,30 +71,16 @@ export default function App() {
   const handleEmergency = () => {
     setEmergencyMode(true);
     
-    // Sort by distance roughly (parse integer from distance string like "200m")
-    const withScoreAndDist = restrooms.map(r => ({
+    const withDist = restrooms.map(r => ({
       ...r,
-      distInt: parseInt(r.distance) || 9999,
-      scoreInt: calculateScore(r.factors).score
-    }));
+      distInt: parseInt(r.distance) || 9999
+    })).filter(r => r.distInt <= 200);
 
-    const sortedByDist = [...withScoreAndDist].sort((a, b) => a.distInt - b.distInt);
-    const sortedByScore = [...withScoreAndDist].sort((a, b) => b.scoreInt - a.scoreInt);
-
+    const sortedByDist = [...withDist].sort((a, b) => a.distInt - b.distInt);
     const nearest = sortedByDist[0];
-    const best = sortedByScore[0];
     
-    // Find an alternative that is neither nearest nor best, preferably high score
-    let alternative = null;
-    for (const r of sortedByScore) {
-      if (r.id !== nearest.id && r.id !== best.id) {
-        alternative = r;
-        break;
-      }
-    }
-
-    setRecommendations({ nearest, best, alternative });
-    setSelectedRestroom(nearest);
+    setRecommendations({ nearest });
+    setSelectedRestroom(nearest || null);
   };
 
   const handleReport = (type) => {
@@ -110,14 +96,14 @@ export default function App() {
     });
     setRestrooms(updated);
     setSelectedRestroom(updated.find(r => r.id === selectedRestroom.id));
-    // Recompute recommendations if in emergency mode so report reflects
-    if (emergencyMode && recommendations) {
-       // Just keeping things simple, we don't strictly need to re-sort unless scores changed significantly
-    }
     alert(`Report "${type}" saved!`);
   };
 
   const filteredRestrooms = restrooms.filter(r => {
+    if (emergencyMode) {
+      const dist = parseInt(r.distance) || 9999;
+      if (dist > 200) return false;
+    }
     if (filters.freeOnly && r.factors.affordability !== 100) return false;
     if (filters.accessible && r.factors.accessibility !== 100) return false;
     return true;
@@ -163,42 +149,21 @@ export default function App() {
                 </h3>
                 <button onClick={() => setEmergencyMode(false)} className="text-xs text-gray-500 hover:text-gray-800 dark:hover:text-white px-2 py-1 bg-white dark:bg-gray-800 rounded shadow">Cancel</button>
               </div>
-              <p className="text-xs text-red-600 dark:text-red-300 mb-4">We found the best options for you based on distance and reliability score.</p>
+              <p className="text-xs text-red-600 dark:text-red-300 mb-4">Showing the absolute nearest restrooms within a 200m radius.</p>
               
-              {recommendations && (
+              {recommendations && recommendations.nearest ? (
                 <div className="flex flex-col gap-3">
                   <div 
                     onClick={() => setSelectedRestroom(recommendations.nearest)}
                     className={`p-3 rounded-lg cursor-pointer border ${selectedRestroom?.id === recommendations.nearest.id ? 'border-brand-coral bg-white dark:bg-gray-800' : 'border-transparent bg-white/50 dark:bg-gray-800/50'}`}
                   >
-                    <div className="text-[10px] font-bold text-brand-coral uppercase tracking-wider mb-1">Nearest (Closest to you)</div>
+                    <div className="text-[10px] font-bold text-brand-coral uppercase tracking-wider mb-1">Nearest Restroom</div>
                     <div className="font-semibold text-sm dark:text-white">{recommendations.nearest.name}</div>
                     <div className="text-xs text-gray-500">{recommendations.nearest.distance} away</div>
                   </div>
-                  
-                  <div 
-                    onClick={() => setSelectedRestroom(recommendations.best)}
-                    className={`p-3 rounded-lg cursor-pointer border ${selectedRestroom?.id === recommendations.best.id ? 'border-brand-plum bg-white dark:bg-gray-800' : 'border-transparent bg-white/50 dark:bg-gray-800/50'}`}
-                  >
-                    <div className="text-[10px] font-bold text-brand-plum dark:text-brand-coral uppercase tracking-wider mb-1 flex justify-between">
-                      <span>Highest Rated (Best Quality)</span>
-                      <span>Score: {recommendations.best.scoreInt}</span>
-                    </div>
-                    <div className="font-semibold text-sm dark:text-white">{recommendations.best.name}</div>
-                    <div className="text-xs text-gray-500">{recommendations.best.distance} away</div>
-                  </div>
-
-                  {recommendations.alternative && (
-                    <div 
-                      onClick={() => setSelectedRestroom(recommendations.alternative)}
-                      className={`p-3 rounded-lg cursor-pointer border ${selectedRestroom?.id === recommendations.alternative.id ? 'border-gray-400 bg-white dark:bg-gray-800' : 'border-transparent bg-white/50 dark:bg-gray-800/50'}`}
-                    >
-                      <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Alternative Option</div>
-                      <div className="font-semibold text-sm dark:text-white">{recommendations.alternative.name}</div>
-                      <div className="text-xs text-gray-500">{recommendations.alternative.distance} away</div>
-                    </div>
-                  )}
                 </div>
+              ) : (
+                <div className="text-sm text-red-500 font-semibold">No restrooms found within 200 meters!</div>
               )}
             </div>
           )}
