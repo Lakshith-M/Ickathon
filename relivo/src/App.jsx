@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { calculateScore, demoData, fetchLiveRestrooms } from './utils';
-import { Moon, Sun, AlertTriangle, Filter, CheckCircle2, Navigation, AlertCircle, MapPin, Loader2 } from 'lucide-react';
+import { Moon, Sun, AlertTriangle, Filter, CheckCircle2, Navigation, AlertCircle, MapPin, Loader2, Star } from 'lucide-react';
 
 function ChangeView({ center, zoom }) {
   const map = useMap();
@@ -19,6 +19,11 @@ export default function App() {
   const [filters, setFilters] = useState({ freeOnly: false, accessible: false });
   const [loading, setLoading] = useState(false);
   const [geoError, setGeoError] = useState(null);
+  
+  // Feedback state
+  const [feedbackRating, setFeedbackRating] = useState(0);
+  const [feedbackComment, setFeedbackComment] = useState("");
+
 
   const requestLocation = () => {
     setLoading(true);
@@ -75,20 +80,36 @@ export default function App() {
     setSelectedRestroom(best);
   };
 
-  const handleReport = (type) => {
-    if (!selectedRestroom) return;
+  const handleFeedbackSubmit = (e) => {
+    e.preventDefault();
+    if (!selectedRestroom || feedbackRating === 0) return;
+    
+    // Map 1-5 to 20-100
+    const ratingScore = feedbackRating * 20;
+    
     const updated = restrooms.map(r => {
       if (r.id === selectedRestroom.id) {
+        const newFactors = { ...r.factors };
+        
+        // Update cleanliness and facilities based on user rating to affect reliability score
+        newFactors.cleanliness = newFactors.cleanliness !== null ? (newFactors.cleanliness + ratingScore) / 2 : ratingScore;
+        newFactors.facilities = newFactors.facilities !== null ? (newFactors.facilities + ratingScore) / 2 : ratingScore;
+        // Optionally influence availability
+        newFactors.availability = newFactors.availability !== null ? (newFactors.availability * 0.8 + ratingScore * 0.2) : ratingScore;
+
         return {
           ...r,
-          reports: [{ type, timestamp: Date.now() }, ...r.reports]
+          factors: newFactors,
+          reports: [{ type: 'rating', rating: feedbackRating, comment: feedbackComment, timestamp: Date.now() }, ...r.reports]
         };
       }
       return r;
     });
     setRestrooms(updated);
     setSelectedRestroom(updated.find(r => r.id === selectedRestroom.id));
-    alert('Report saved!');
+    setFeedbackRating(0);
+    setFeedbackComment("");
+    alert('Thank you for your feedback! The reliability score has been updated.');
   };
 
   const filteredRestrooms = restrooms.filter(r => {
@@ -262,12 +283,58 @@ export default function App() {
             </div>
           </div>
 
-          <div className="mb-6 border-t dark:border-gray-700 pt-4">
-            <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Community Report</h4>
-            <div className="flex gap-2">
-              <button onClick={() => handleReport('clean')} className="flex-1 py-2 bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400 rounded hover:bg-green-100 transition">Clean</button>
-              <button onClick={() => handleReport('dirty')} className="flex-1 py-2 bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400 rounded hover:bg-red-100 transition">Dirty</button>
+          {selectedRestroom.reports.filter(r => r.type === 'rating' && r.comment).length > 0 && (
+            <div className="mb-6">
+              <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">Recent Comments</h4>
+              <div className="flex flex-col gap-2 max-h-32 overflow-y-auto pr-2">
+                {selectedRestroom.reports.filter(r => r.type === 'rating' && r.comment).map((r, i) => (
+                  <div key={i} className="bg-gray-50 dark:bg-gray-900 p-2 rounded text-sm text-gray-700 dark:text-gray-300">
+                    <div className="flex gap-1 mb-1">
+                      {[1, 2, 3, 4, 5].map(s => (
+                        <Star key={s} size={12} fill={s <= r.rating ? "#f59e0b" : "none"} color={s <= r.rating ? "#f59e0b" : "#9ca3af"} />
+                      ))}
+                    </div>
+                    {r.comment}
+                  </div>
+                ))}
+              </div>
             </div>
+          )}
+
+          <div className="mb-6 border-t dark:border-gray-700 pt-4">
+            <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Leave Feedback</h4>
+            <form onSubmit={handleFeedbackSubmit} className="flex flex-col gap-3">
+              <div className="flex gap-1 justify-center mb-2">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    onClick={() => setFeedbackRating(star)}
+                    className="focus:outline-none transition-transform hover:scale-110"
+                  >
+                    <Star
+                      size={28}
+                      fill={star <= feedbackRating ? "#f59e0b" : "none"}
+                      color={star <= feedbackRating ? "#f59e0b" : "#9ca3af"}
+                    />
+                  </button>
+                ))}
+              </div>
+              <textarea
+                value={feedbackComment}
+                onChange={(e) => setFeedbackComment(e.target.value)}
+                placeholder="Share your experience (optional)"
+                className="w-full p-2 text-sm border rounded-lg bg-gray-50 dark:bg-gray-900 dark:border-gray-700 dark:text-white focus:ring-2 focus:ring-brand-plum outline-none resize-none"
+                rows="2"
+              />
+              <button 
+                type="submit" 
+                disabled={feedbackRating === 0}
+                className="w-full py-2 bg-brand-plum text-white rounded-lg hover:bg-brand-plumDark transition disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+              >
+                Submit & Update Score
+              </button>
+            </form>
           </div>
 
           <a 
