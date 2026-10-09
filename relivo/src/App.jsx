@@ -46,8 +46,24 @@ export default function App() {
         }
         setLoading(false);
       },
-      (error) => {
-        setGeoError("Location permission denied.");
+      async (error) => {
+        let msg = "Location permission denied.";
+        if (error.code === 2) msg = "Location unavailable (no GPS).";
+        if (error.code === 3) msg = "Location request timed out.";
+        
+        setGeoError(`${msg} Falling back to campus center...`);
+        
+        // Fallback to fetch live data around SSN
+        try {
+          const liveData = await fetchLiveRestrooms(userLoc[0], userLoc[1]);
+          if (liveData.length > 0) {
+            setRestrooms(liveData);
+          } else {
+            setGeoError(`${msg} No restrooms found at campus either.`);
+          }
+        } catch (err) {
+          setGeoError(`${msg} Failed to load fallback data.`);
+        }
         setLoading(false);
       }
     );
