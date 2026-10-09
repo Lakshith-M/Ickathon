@@ -3,6 +3,8 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { calculateScore, fetchLiveRestrooms } from './utils';
 import { AlertTriangle, Filter, CheckCircle, Navigation, AlertCircle, MapPin, Loader2, Star, X, Info, Plus } from 'lucide-react';
 import AdminDashboard from './AdminDashboard';
+import { auth, googleProvider } from './firebase';
+import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 
 function ChangeView({ center, zoom }) {
   const map = useMap();
@@ -10,13 +12,14 @@ function ChangeView({ center, zoom }) {
   return null;
 }
 
+const ADMIN_EMAILS = ['lakshith@example.com', 'admin@relivo.com']; // Hardcode admin emails here
+
 export default function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(() => localStorage.getItem('relivo_auth') !== null);
-  const [isAdmin, setIsAdmin] = useState(() => localStorage.getItem('relivo_auth') === 'admin');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
-  const [authMode, setAuthMode] = useState('login');
-  const [loginForm, setLoginForm] = useState({ email: '', password: '' });
   const [authError, setAuthError] = useState('');
+  const [authLoading, setAuthLoading] = useState(true);
   
   const [customRestrooms, setCustomRestrooms] = useState(() => JSON.parse(localStorage.getItem('relivo_custom_restrooms') || '[]'));
   const [deletedIds, setDeletedIds] = useState(() => JSON.parse(localStorage.getItem('relivo_deleted_ids') || '[]'));
@@ -37,6 +40,23 @@ export default function App() {
   const [feedbackRating, setFeedbackRating] = useState(0);
   const [feedbackComment, setFeedbackComment] = useState("");
 
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setIsAuthenticated(true);
+        if (ADMIN_EMAILS.includes(user.email)) {
+          setIsAdmin(true);
+        } else {
+          setIsAdmin(false);
+        }
+      } else {
+        setIsAuthenticated(false);
+        setIsAdmin(false);
+      }
+      setAuthLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const requestLocation = () => {
     setLoading(true);
@@ -166,56 +186,19 @@ export default function App() {
     return "Stale";
   };
 
-  const handleAuth = (e) => {
-    e.preventDefault();
-    setAuthError('');
-    
-    if (!loginForm.email || !loginForm.password) {
-      setAuthError('Please fill in all fields');
-      return;
-    }
-
-    const users = JSON.parse(localStorage.getItem('relivo_users') || '[]');
-
-    if (authMode === 'signup') {
-      if (loginForm.email === 'admin@relivo.com') {
-        setAuthError('Cannot register as admin.');
-        return;
-      }
-      if (users.find(u => u.email === loginForm.email)) {
-        setAuthError('User already exists. Please login.');
-        return;
-      }
-      users.push({ email: loginForm.email, password: loginForm.password });
-      localStorage.setItem('relivo_users', JSON.stringify(users));
-      localStorage.setItem('relivo_auth', 'user');
-      setIsAuthenticated(true);
-      setIsAdmin(false);
-    } else {
-      if (loginForm.email === 'admin@relivo.com' && loginForm.password === 'admin') {
-        localStorage.setItem('relivo_auth', 'admin');
-        setIsAuthenticated(true);
-        setIsAdmin(true);
-        return;
-      }
-
-      const user = users.find(u => u.email === loginForm.email && u.password === loginForm.password);
-      if (user) {
-        localStorage.setItem('relivo_auth', 'user');
-        setIsAuthenticated(true);
-        setIsAdmin(false);
-      } else {
-        setAuthError('Invalid email or password');
-      }
+  const handleGoogleLogin = async () => {
+    try {
+      setAuthError('');
+      await signInWithPopup(auth, googleProvider);
+    } catch (error) {
+      console.error(error);
+      setAuthError('Failed to sign in with Google: ' + error.message);
     }
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('relivo_auth');
-    setIsAuthenticated(false);
-    setIsAdmin(false);
+    signOut(auth);
     setShowAdmin(false);
-    setLoginForm({ email: '', password: '' });
   };
 
   const handleRequestSubmit = (e) => {
@@ -235,6 +218,14 @@ export default function App() {
     alert('Request sent to admin for approval!');
   };
 
+  if (authLoading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-brand-offWhite dark:bg-gray-900">
+        <Loader2 size={48} className="animate-spin text-brand-plum" />
+      </div>
+    );
+  }
+
   if (!isAuthenticated) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-brand-offWhite dark:bg-gray-900 transition-colors">
@@ -251,47 +242,14 @@ export default function App() {
             </div>
           )}
           
-          <form onSubmit={handleAuth} className="flex flex-col gap-5">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1">Email</label>
-              <input 
-                type="email" 
-                required
-                value={loginForm.email}
-                onChange={e => setLoginForm({...loginForm, email: e.target.value})}
-                placeholder="you@example.com"
-                className="w-full p-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-brand-plum outline-none transition"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1">Password</label>
-              <input 
-                type="password" 
-                required
-                value={loginForm.password}
-                onChange={e => setLoginForm({...loginForm, password: e.target.value})}
-                placeholder="••••••••"
-                className="w-full p-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-brand-plum outline-none transition"
-              />
-            </div>
-            
-            <button 
-              type="submit"
-              className="w-full bg-brand-plum hover:bg-brand-plumDark text-white font-bold py-3 px-4 rounded-xl shadow-lg mt-2 transition transform active:scale-95"
-            >
-              {authMode === 'login' ? 'Sign In' : 'Create Account'}
-            </button>
-            
-            <div className="text-center mt-4 text-sm">
-              <button 
-                type="button" 
-                onClick={() => { setAuthMode(authMode === 'login' ? 'signup' : 'login'); setAuthError(''); }}
-                className="text-brand-plum font-semibold hover:underline"
-              >
-                {authMode === 'login' ? "Don't have an account? Sign up" : "Already have an account? Log in"}
-              </button>
-            </div>
-          </form>
+          <button 
+            onClick={handleGoogleLogin}
+            className="w-full flex justify-center items-center gap-3 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-bold py-3 px-4 rounded-xl shadow-sm mt-2 transition transform active:scale-95"
+          >
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-6 h-6" />
+            Sign in with Google
+          </button>
+          
         </div>
       </div>
     );
