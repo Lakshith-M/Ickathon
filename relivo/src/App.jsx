@@ -15,7 +15,7 @@ export default function App() {
   const [restrooms, setRestrooms] = useState(demoData);
   const [selectedRestroom, setSelectedRestroom] = useState(null);
   const [emergencyMode, setEmergencyMode] = useState(false);
-  const [userLoc, setUserLoc] = useState([40.7820, -73.9650]); // Central park area fallback
+  const [userLoc, setUserLoc] = useState([12.7508, 80.1973]); // SSN College fallback
   const [filters, setFilters] = useState({ freeOnly: false, accessible: false });
   const [loading, setLoading] = useState(false);
   const [geoError, setGeoError] = useState(null);
