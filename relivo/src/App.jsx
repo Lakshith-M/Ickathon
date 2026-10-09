@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { calculateScore, fetchLiveRestrooms } from './utils';
-import { AlertTriangle, Filter, CheckCircle, Navigation, AlertCircle, MapPin, Loader2, Star, X, Info } from 'lucide-react';
+import { AlertTriangle, Filter, CheckCircle, Navigation, AlertCircle, MapPin, Loader2, Star, X, Info, Plus } from 'lucide-react';
+import AdminDashboard from './AdminDashboard';
 
 function ChangeView({ center, zoom }) {
   const map = useMap();
@@ -10,10 +11,19 @@ function ChangeView({ center, zoom }) {
 }
 
 export default function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(() => localStorage.getItem('relivo_auth') === 'true');
+  const [isAuthenticated, setIsAuthenticated] = useState(() => localStorage.getItem('relivo_auth') !== null);
+  const [isAdmin, setIsAdmin] = useState(() => localStorage.getItem('relivo_auth') === 'admin');
+  const [showAdmin, setShowAdmin] = useState(false);
   const [authMode, setAuthMode] = useState('login');
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
   const [authError, setAuthError] = useState('');
+  
+  const [customRestrooms, setCustomRestrooms] = useState(() => JSON.parse(localStorage.getItem('relivo_custom_restrooms') || '[]'));
+  const [deletedIds, setDeletedIds] = useState(() => JSON.parse(localStorage.getItem('relivo_deleted_ids') || '[]'));
+  const [requests, setRequests] = useState(() => JSON.parse(localStorage.getItem('relivo_requests') || '[]'));
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newRestroomForm, setNewRestroomForm] = useState({ name: '', free: false, accessible: false });
+
   const [restrooms, setRestrooms] = useState([]);
   const [selectedRestroom, setSelectedRestroom] = useState(null);
   const [emergencyMode, setEmergencyMode] = useState(false);
@@ -44,8 +54,9 @@ export default function App() {
         
         try {
           const liveData = await fetchLiveRestrooms(latitude, longitude);
-          if (liveData.length > 0) {
-            setRestrooms(liveData);
+          const combined = [...liveData, ...customRestrooms].filter(r => !deletedIds.includes(r.id));
+          if (combined.length > 0) {
+            setRestrooms(combined);
           } else {
             setGeoError("No restrooms found nearby.");
           }
@@ -167,19 +178,32 @@ export default function App() {
     const users = JSON.parse(localStorage.getItem('relivo_users') || '[]');
 
     if (authMode === 'signup') {
+      if (loginForm.email === 'admin@relivo.com') {
+        setAuthError('Cannot register as admin.');
+        return;
+      }
       if (users.find(u => u.email === loginForm.email)) {
         setAuthError('User already exists. Please login.');
         return;
       }
       users.push({ email: loginForm.email, password: loginForm.password });
       localStorage.setItem('relivo_users', JSON.stringify(users));
-      localStorage.setItem('relivo_auth', 'true');
+      localStorage.setItem('relivo_auth', 'user');
       setIsAuthenticated(true);
+      setIsAdmin(false);
     } else {
+      if (loginForm.email === 'admin@relivo.com' && loginForm.password === 'admin') {
+        localStorage.setItem('relivo_auth', 'admin');
+        setIsAuthenticated(true);
+        setIsAdmin(true);
+        return;
+      }
+
       const user = users.find(u => u.email === loginForm.email && u.password === loginForm.password);
       if (user) {
-        localStorage.setItem('relivo_auth', 'true');
+        localStorage.setItem('relivo_auth', 'user');
         setIsAuthenticated(true);
+        setIsAdmin(false);
       } else {
         setAuthError('Invalid email or password');
       }
@@ -189,7 +213,26 @@ export default function App() {
   const handleLogout = () => {
     localStorage.removeItem('relivo_auth');
     setIsAuthenticated(false);
+    setIsAdmin(false);
+    setShowAdmin(false);
     setLoginForm({ email: '', password: '' });
+  };
+
+  const handleRequestSubmit = (e) => {
+    e.preventDefault();
+    if (!newRestroomForm.name) return;
+    const req = {
+      id: 'req-' + Date.now(),
+      ...newRestroomForm,
+      lat: userLoc[0] + (Math.random() * 0.002 - 0.001), // Dummy jitter around user loc
+      lon: userLoc[1] + (Math.random() * 0.002 - 0.001)
+    };
+    const updated = [...requests, req];
+    setRequests(updated);
+    localStorage.setItem('relivo_requests', JSON.stringify(updated));
+    setShowAddModal(false);
+    setNewRestroomForm({ name: '', free: false, accessible: false });
+    alert('Request sent to admin for approval!');
   };
 
   if (!isAuthenticated) {
@@ -264,9 +307,16 @@ export default function App() {
             <h1 className="text-3xl font-bold tracking-tight">RELIVO</h1>
             <p className="text-sm opacity-90 mt-1">Relief, right when you need it.</p>
           </div>
-          <button onClick={handleLogout} className="text-xs font-semibold hover:bg-white/20 px-3 py-1.5 rounded transition">
-            Log Out
-          </button>
+          <div className="flex items-center gap-2">
+            {isAdmin && (
+              <button onClick={() => setShowAdmin(true)} className="text-xs bg-brand-coral font-bold px-3 py-1.5 rounded transition hover:bg-red-500 shadow">
+                Admin Panel
+              </button>
+            )}
+            <button onClick={handleLogout} className="text-xs font-semibold hover:bg-white/20 px-3 py-1.5 rounded transition border border-white/20">
+              Log Out
+            </button>
+          </div>
         </div>
 
         <div className="p-6 flex-1 overflow-y-auto">
@@ -561,6 +611,70 @@ export default function App() {
             Navigate Here
           </a>
         </div>
+      )}
+
+      {/* Floating Add Restroom Button for Users */}
+      {!isAdmin && !showAddModal && (
+        <button 
+          onClick={() => setShowAddModal(true)}
+          className="absolute bottom-6 left-6 z-40 bg-brand-plum text-white p-4 rounded-full shadow-2xl hover:bg-brand-plumDark hover:scale-105 transition transform"
+          title="Suggest a new restroom"
+        >
+          <Plus size={28} />
+        </button>
+      )}
+
+      {/* Add Restroom Request Modal */}
+      {showAddModal && (
+        <div className="absolute inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl w-full max-w-sm shadow-2xl relative">
+            <button onClick={() => setShowAddModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-black dark:hover:text-white">
+              <X size={20} />
+            </button>
+            <h2 className="text-xl font-bold mb-4 dark:text-white">Suggest a Restroom</h2>
+            <form onSubmit={handleRequestSubmit} className="flex flex-col gap-4">
+              <div>
+                <label className="block text-sm font-semibold mb-1 dark:text-gray-200">Name / Landmark</label>
+                <input 
+                  type="text" 
+                  required
+                  value={newRestroomForm.name}
+                  onChange={e => setNewRestroomForm({...newRestroomForm, name: e.target.value})}
+                  className="w-full p-2 border rounded-lg bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white outline-none focus:ring-2 focus:ring-brand-plum"
+                  placeholder="E.g. Central Park Toilet"
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="flex items-center gap-2 dark:text-gray-200 text-sm">
+                  <input type="checkbox" checked={newRestroomForm.free} onChange={e => setNewRestroomForm({...newRestroomForm, free: e.target.checked})} className="rounded text-brand-plum" />
+                  Is it free to use?
+                </label>
+                <label className="flex items-center gap-2 dark:text-gray-200 text-sm">
+                  <input type="checkbox" checked={newRestroomForm.accessible} onChange={e => setNewRestroomForm({...newRestroomForm, accessible: e.target.checked})} className="rounded text-brand-plum" />
+                  Is it wheelchair accessible?
+                </label>
+              </div>
+              <button type="submit" className="w-full mt-2 bg-brand-plum text-white font-bold py-3 rounded-xl hover:bg-brand-plumDark transition shadow-lg">
+                Submit Request
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Full Screen Admin Dashboard */}
+      {showAdmin && isAdmin && (
+        <AdminDashboard 
+          restrooms={restrooms}
+          setRestrooms={setRestrooms}
+          requests={requests}
+          setRequests={setRequests}
+          customRestrooms={customRestrooms}
+          setCustomRestrooms={setCustomRestrooms}
+          deletedIds={deletedIds}
+          setDeletedIds={setDeletedIds}
+          onClose={() => setShowAdmin(false)}
+        />
       )}
     </div>
   );
