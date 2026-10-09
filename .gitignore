@@ -1,0 +1,28 @@
+# Ick-A-Thon Specific
+Rules/
+Round 1 - PPT/
+
+# Dependencies
+node_modules/
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.env
+.venv/
+
+# Build and OS files
+dist/
+build/
+.DS_Store
+Thumbs.db
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
