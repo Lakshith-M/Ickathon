@@ -10,6 +10,10 @@ function ChangeView({ center, zoom }) {
 }
 
 export default function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(() => localStorage.getItem('relivo_auth') === 'true');
+  const [authMode, setAuthMode] = useState('login');
+  const [loginForm, setLoginForm] = useState({ email: '', password: '' });
+  const [authError, setAuthError] = useState('');
   const [restrooms, setRestrooms] = useState([]);
   const [selectedRestroom, setSelectedRestroom] = useState(null);
   const [emergencyMode, setEmergencyMode] = useState(false);
@@ -151,6 +155,105 @@ export default function App() {
     return "Stale";
   };
 
+  const handleAuth = (e) => {
+    e.preventDefault();
+    setAuthError('');
+    
+    if (!loginForm.email || !loginForm.password) {
+      setAuthError('Please fill in all fields');
+      return;
+    }
+
+    const users = JSON.parse(localStorage.getItem('relivo_users') || '[]');
+
+    if (authMode === 'signup') {
+      if (users.find(u => u.email === loginForm.email)) {
+        setAuthError('User already exists. Please login.');
+        return;
+      }
+      users.push({ email: loginForm.email, password: loginForm.password });
+      localStorage.setItem('relivo_users', JSON.stringify(users));
+      localStorage.setItem('relivo_auth', 'true');
+      setIsAuthenticated(true);
+    } else {
+      const user = users.find(u => u.email === loginForm.email && u.password === loginForm.password);
+      if (user) {
+        localStorage.setItem('relivo_auth', 'true');
+        setIsAuthenticated(true);
+      } else {
+        setAuthError('Invalid email or password');
+      }
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('relivo_auth');
+    setIsAuthenticated(false);
+    setLoginForm({ email: '', password: '' });
+  };
+
+  if (!isAuthenticated) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-brand-offWhite dark:bg-gray-900 transition-colors">
+        <div className="w-full max-w-md p-8 bg-white dark:bg-brand-plumDark rounded-3xl shadow-2xl m-4">
+          <div className="text-center mb-8">
+            <h1 className="text-4xl font-black text-brand-plum mb-2 tracking-tight">RELIVO</h1>
+            <p className="text-gray-500 dark:text-gray-300">Relief, right when you need it.</p>
+          </div>
+          
+          {authError && (
+            <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm font-semibold flex items-center justify-center gap-2">
+              <AlertCircle size={16} />
+              {authError}
+            </div>
+          )}
+          
+          <form onSubmit={handleAuth} className="flex flex-col gap-5">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1">Email</label>
+              <input 
+                type="email" 
+                required
+                value={loginForm.email}
+                onChange={e => setLoginForm({...loginForm, email: e.target.value})}
+                placeholder="you@example.com"
+                className="w-full p-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-brand-plum outline-none transition"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1">Password</label>
+              <input 
+                type="password" 
+                required
+                value={loginForm.password}
+                onChange={e => setLoginForm({...loginForm, password: e.target.value})}
+                placeholder="••••••••"
+                className="w-full p-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-brand-plum outline-none transition"
+              />
+            </div>
+            
+            <button 
+              type="submit"
+              className="w-full bg-brand-plum hover:bg-brand-plumDark text-white font-bold py-3 px-4 rounded-xl shadow-lg mt-2 transition transform active:scale-95"
+            >
+              {authMode === 'login' ? 'Sign In' : 'Create Account'}
+            </button>
+            
+            <div className="text-center mt-4 text-sm">
+              <button 
+                type="button" 
+                onClick={() => { setAuthMode(authMode === 'login' ? 'signup' : 'login'); setAuthError(''); }}
+                className="text-brand-plum font-semibold hover:underline"
+              >
+                {authMode === 'login' ? "Don't have an account? Sign up" : "Already have an account? Log in"}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-screen w-full flex-col md:flex-row overflow-hidden bg-brand-offWhite dark:bg-gray-900 transition-colors">
       
@@ -161,6 +264,9 @@ export default function App() {
             <h1 className="text-3xl font-bold tracking-tight">RELIVO</h1>
             <p className="text-sm opacity-90 mt-1">Relief, right when you need it.</p>
           </div>
+          <button onClick={handleLogout} className="text-xs font-semibold hover:bg-white/20 px-3 py-1.5 rounded transition">
+            Log Out
+          </button>
         </div>
 
         <div className="p-6 flex-1 overflow-y-auto">
