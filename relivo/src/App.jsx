@@ -4,7 +4,7 @@ import { calculateScore, fetchLiveRestrooms } from './utils';
 import { AlertTriangle, Filter, CheckCircle, Navigation, AlertCircle, MapPin, Loader2, Star, X, Info, Plus } from 'lucide-react';
 import AdminDashboard from './AdminDashboard';
 import { auth, googleProvider } from './firebase';
-import { signInWithRedirect, signOut, onAuthStateChanged } from 'firebase/auth';
+import { signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged } from 'firebase/auth';
 
 function ChangeView({ center, zoom }) {
   const map = useMap();
@@ -41,6 +41,12 @@ export default function App() {
   const [feedbackComment, setFeedbackComment] = useState("");
 
   useEffect(() => {
+    // Check for redirect result (errors from google sign in)
+    getRedirectResult(auth).catch((error) => {
+      console.error(error);
+      setAuthError('Sign in failed: ' + error.message);
+    });
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         setIsAuthenticated(true);
