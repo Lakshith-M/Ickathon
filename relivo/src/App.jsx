@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
-import { calculateScore, demoData, fetchLiveRestrooms } from './utils';
+import { calculateScore, fetchLiveRestrooms } from './utils';
 import { Moon, Sun, AlertTriangle, Filter, CheckCircle, Navigation, AlertCircle, MapPin, Loader2, Star, X, Info } from 'lucide-react';
 
 function ChangeView({ center, zoom }) {
