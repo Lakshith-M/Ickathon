@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
-import { calculateScore, demoData, fetchLiveRestrooms } from './utils';
+import { calculateScore, fetchLiveRestrooms } from './utils';
 import { Moon, Sun, AlertTriangle, Filter, CheckCircle2, Navigation, AlertCircle, MapPin, Loader2, X, Info } from 'lucide-react';
 
 function ChangeView({ center, zoom }) {
@@ -11,8 +11,7 @@ function ChangeView({ center, zoom }) {
 
 export default function App() {
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
-  const [demoMode, setDemoMode] = useState(true);
-  const [restrooms, setRestrooms] = useState(demoData);
+  const [restrooms, setRestrooms] = useState([]);
   const [selectedRestroom, setSelectedRestroom] = useState(null);
   const [emergencyMode, setEmergencyMode] = useState(false);
   const [recommendations, setRecommendations] = useState(null);
@@ -39,17 +38,16 @@ export default function App() {
           const liveData = await fetchLiveRestrooms(latitude, longitude);
           if (liveData.length > 0) {
             setRestrooms(liveData);
-            setDemoMode(false);
           } else {
-            setGeoError("No restrooms found nearby. Showing demo data.");
+            setGeoError("No restrooms found nearby.");
           }
         } catch (err) {
-          setGeoError("Failed to load live data. Showing demo data.");
+          setGeoError("Failed to load live data.");
         }
         setLoading(false);
       },
       (error) => {
-        setGeoError("Location permission denied. Showing demo data.");
+        setGeoError("Location permission denied.");
         setLoading(false);
       }
     );
@@ -236,9 +234,6 @@ export default function App() {
           <div className="space-y-4">
             <div className="flex justify-between items-center text-sm text-gray-500 dark:text-gray-400">
               <span>{filteredRestrooms.length} results</span>
-              <span className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded text-xs">
-                {demoMode ? 'Demo Data' : 'Live Data'}
-              </span>
             </div>
 
             {filteredRestrooms.length === 0 ? (
@@ -334,7 +329,7 @@ export default function App() {
                    </div>
                 ) : 'No Reports Yet'}
               </span>
-              <span className="text-[10px] text-gray-400 mt-1">Local demo data</span>
+              <span className="text-[10px] text-gray-400 mt-1">Community sourced</span>
             </div>
           </div>
 
