@@ -20,45 +20,31 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [geoError, setGeoError] = useState(null);
 
-  const requestLocation = async () => {
+  const requestLocation = () => {
     setLoading(true);
-    setGeoError(null);
 
-    const loadDataForLocation = async (lat, lon) => {
+    const finishLoading = (lat, lon) => {
       setUserLoc([lat, lon]);
-      try {
-        const liveData = await fetchLiveRestrooms(lat, lon);
-        setRestrooms(liveData || []);
-      } catch (err) {
-        setRestrooms([]);
-      }
-      setLoading(false);
+      fetchLiveRestrooms(lat, lon)
+        .then(liveData => setRestrooms(liveData || []))
+        .catch(() => setRestrooms([]))
+        .finally(() => setLoading(false));
     };
 
     if (!navigator.geolocation) {
-      await loadDataForLocation(12.751762400088847, 80.19629808228933);
+      finishLoading(12.751762400088847, 80.19629808228933);
       return;
     }
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        loadDataForLocation(position.coords.latitude, position.coords.longitude);
+        finishLoading(position.coords.latitude, position.coords.longitude);
       },
-      async () => {
-        try {
-          const ipRes = await fetch('https://ipinfo.io/json');
-          const ipData = await ipRes.json();
-          if (ipData.loc) {
-            const [lat, lon] = ipData.loc.split(',').map(Number);
-            await loadDataForLocation(lat, lon);
-          } else {
-            throw new Error('IP Location failed');
-          }
-        } catch (err) {
-          await loadDataForLocation(12.751762400088847, 80.19629808228933);
-        }
+      (error) => {
+        // Fallback to specific coordinates immediately if GPS fails/is denied
+        finishLoading(12.751762400088847, 80.19629808228933);
       },
-      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   };
 
