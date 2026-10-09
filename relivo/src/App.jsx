@@ -29,6 +29,7 @@ export default function App() {
   const [filters, setFilters] = useState({ freeOnly: false, accessible: false });
   const [loading, setLoading] = useState(false);
   const [geoError, setGeoError] = useState(null);
+  const [hasSearched, setHasSearched] = useState(false);
 
   const requestLocation = () => {
     setLoading(true);
@@ -38,7 +39,10 @@ export default function App() {
       fetchLiveRestrooms(lat, lon)
         .then(liveData => setRestrooms(liveData || []))
         .catch(() => setRestrooms([]))
-        .finally(() => setLoading(false));
+        .finally(() => {
+          setLoading(false);
+          setHasSearched(true);
+        });
     };
 
     if (!navigator.geolocation) {
@@ -133,13 +137,22 @@ export default function App() {
         </div>
 
         <div className="p-6 flex-1 overflow-y-auto">
-          {!emergencyMode ? (
+          {!hasSearched ? (
+            <button 
+              onClick={requestLocation}
+              disabled={loading}
+              className="w-full bg-brand-plum hover:bg-brand-plumDark text-white font-bold py-4 px-6 rounded-2xl shadow-lg transform transition active:scale-95 flex items-center justify-center gap-3 text-lg mb-6"
+            >
+              {loading ? <Loader2 size={24} className="animate-spin" /> : <MapPin size={24} />}
+              FIND TOILETS NEAR ME
+            </button>
+          ) : !emergencyMode ? (
             <button 
               onClick={handleEmergency}
               className="w-full bg-brand-coral hover:bg-red-500 text-white font-bold py-4 px-6 rounded-2xl shadow-lg transform transition active:scale-95 flex items-center justify-center gap-3 text-lg mb-6"
             >
               <AlertTriangle size={24} />
-              FIND A TOILET NOW
+              EMERGENCY MODE
             </button>
           ) : (
             <div className="mb-6 bg-red-50 dark:bg-red-900/20 border-l-4 border-brand-coral p-4 rounded-r-xl">
@@ -179,7 +192,7 @@ export default function App() {
                 className="text-xs bg-brand-plum text-white px-3 py-1.5 rounded-lg hover:bg-brand-plumDark transition disabled:opacity-50 flex items-center gap-1"
               >
                 {loading ? <Loader2 size={12} className="animate-spin" /> : null}
-                Use My Location
+                {hasSearched ? 'Refresh Location' : 'Use My Location'}
               </button>
             </div>
             {geoError && <p className="text-xs text-red-500 mt-1">{geoError}</p>}
