@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
-import { calculateScore, fetchLiveRestrooms, demoData } from './utils';
+import { calculateScore, fetchLiveRestrooms } from './utils';
 import { Moon, Sun, AlertTriangle, Filter, CheckCircle2, Navigation, AlertCircle, MapPin, Loader2, X, Info } from 'lucide-react';
 
 function ChangeView({ center, zoom }) {
@@ -24,52 +24,38 @@ export default function App() {
     setLoading(true);
     setGeoError(null);
 
-    const loadDataForLocation = async (lat, lon, sourceMsg) => {
+    const loadDataForLocation = async (lat, lon) => {
       setUserLoc([lat, lon]);
       try {
         const liveData = await fetchLiveRestrooms(lat, lon);
-        if (liveData.length > 0) {
-          setRestrooms(liveData);
-          if (sourceMsg) setGeoError(sourceMsg);
-        } else {
-          // If OSM has no data for this location, inject our SSN mock data so the app works for the demo!
-          setRestrooms(demoData);
-          setGeoError(`${sourceMsg ? sourceMsg + ' ' : ''}No live data on OSM here. Loaded campus demo data.`);
-        }
+        setRestrooms(liveData || []);
       } catch (err) {
-        setRestrooms(demoData);
-        setGeoError(`${sourceMsg ? sourceMsg + ' ' : ''}Live fetch failed. Loaded campus demo data.`);
+        setRestrooms([]);
       }
       setLoading(false);
     };
 
     if (!navigator.geolocation) {
-      await loadDataForLocation(12.7508, 80.1973, "Geolocation unsupported.");
+      await loadDataForLocation(12.751762400088847, 80.19629808228933);
       return;
     }
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        loadDataForLocation(position.coords.latitude, position.coords.longitude, null);
+        loadDataForLocation(position.coords.latitude, position.coords.longitude);
       },
-      async (error) => {
-        let msg = "GPS denied.";
-        if (error.code === 2) msg = "GPS unavailable.";
-        if (error.code === 3) msg = "GPS timeout.";
-        
+      async () => {
         try {
-          // Fallback to IP location
           const ipRes = await fetch('https://ipinfo.io/json');
           const ipData = await ipRes.json();
           if (ipData.loc) {
             const [lat, lon] = ipData.loc.split(',').map(Number);
-            await loadDataForLocation(lat, lon, `${msg} Used IP Location.`);
+            await loadDataForLocation(lat, lon);
           } else {
             throw new Error('IP Location failed');
           }
         } catch (err) {
-          // Ultimate fallback to SSN College
-          await loadDataForLocation(12.7508, 80.1973, `${msg} IP fallback failed. Used default campus location.`);
+          await loadDataForLocation(12.751762400088847, 80.19629808228933);
         }
       },
       { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
